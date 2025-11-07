@@ -6,6 +6,7 @@ import { db } from "../db/client";
 import { embeddings } from "../db/schema";
 import { chunkCode, CodeChunk } from "./chunker";
 import { listRepositoryFiles, getMultipleFiles } from "../github/api";
+import { generateMetadataDocument } from "./metadata";
 
 export interface GenerateEmbeddingsOptions {
   owner: string;
@@ -21,7 +22,65 @@ export async function generateEmbeddingsFromGitHub(
 
   console.log(`Fetching repository: ${owner}/${repo}@${branch}`);
 
+  // Generate and process metadata document first
+  console.log("\n=== Processing Repository Metadata ===");
+  try {
+    const metadataContent = await generateMetadataDocument(owner, repo);
+    const metadataPath = "_REPOSITORY_METADATA.md";
+    const contentHash = createHash("sha256")
+      .update(metadataContent)
+      .digest("hex");
+
+    // Check if metadata already processed with same content
+    if (!forceRegenerate) {
+      const existing = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(embeddings)
+        .where(
+          and(
+            eq(embeddings.filePath, metadataPath),
+            eq(embeddings.contentHash, contentHash)
+          )
+        );
+
+      if (existing[0] && Number(existing[0].count) === 0) {
+        // Delete old metadata embeddings
+        await db.delete(embeddings).where(eq(embeddings.filePath, metadataPath));
+
+        // Chunk and process metadata
+        const chunks = chunkCode(metadataContent, metadataPath).filter(
+          (chunk) => chunk.content.trim().length > 0
+        );
+        console.log(`Processing metadata: ${chunks.length} chunks`);
+
+        for (let j = 0; j < chunks.length; j += 100) {
+          const chunkBatch = chunks.slice(j, j + 100);
+          await processBatch(metadataPath, contentHash, chunkBatch, j);
+        }
+        console.log(`✓ Metadata embeddings generated`);
+      } else {
+        console.log(`Skipping metadata (already processed)`);
+      }
+    } else {
+      // Force regenerate
+      await db.delete(embeddings).where(eq(embeddings.filePath, metadataPath));
+      const chunks = chunkCode(metadataContent, metadataPath).filter(
+        (chunk) => chunk.content.trim().length > 0
+      );
+      console.log(`Processing metadata: ${chunks.length} chunks`);
+
+      for (let j = 0; j < chunks.length; j += 100) {
+        const chunkBatch = chunks.slice(j, j + 100);
+        await processBatch(metadataPath, contentHash, chunkBatch, j);
+      }
+      console.log(`✓ Metadata embeddings generated`);
+    }
+  } catch (error) {
+    console.error("Error processing metadata:", error);
+  }
+
   // Get list of all supported files
+  console.log("\n=== Processing Code Files ===");
   const fileList = await listRepositoryFiles(owner, repo, branch);
   console.log(`Found ${fileList.length} files to process`);
 

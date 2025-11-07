@@ -10,6 +10,7 @@ export function getSystemPrompt(): string {
 
 You have access to:
 - Full codebase with semantic search capabilities
+- Repository metadata including contributors, maintainers, and project statistics
 - GitHub issues and pull requests via GitHub integration
 - Project documentation and guides
 - Recent conversation history for context awareness

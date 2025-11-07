@@ -15,6 +15,7 @@ A high-performance Discord AI bot built with **Bun** and **Drizzle ORM** featuri
 ## Features
 
 - 🔍 **Semantic Code Search** - Natural language codebase queries
+- 👥 **Repository Metadata** - Automatically indexes contributors, maintainers, and project stats
 - 💬 **Context-Aware Chat** - Maintains last 100 messages per channel
 - 🔗 **GitHub Integration** - Fetch issues and PRs in real-time
 - ⚡ **Real-time Processing** - Immediate message responses
@@ -178,15 +179,17 @@ curl -X POST http://localhost:3000/api/streamyfin/sync \
 ```
 
 This will:
-1. Fetch all repository files via GitHub API
-2. Generate embeddings for all files (on-demand, no cloning)
-3. Make the codebase searchable by the bot
+1. Fetch repository metadata (contributors, stats, etc.)
+2. Fetch all repository files via GitHub API
+3. Generate embeddings for all files (on-demand, no cloning)
+4. Make the codebase searchable by the bot
 
 **Benefits:**
 - ✅ No disk space needed
 - ✅ Always up-to-date
 - ✅ No git dependencies
 - ✅ Faster initial setup
+- ✅ Indexes contributor information
 
 ### Generate Embeddings (For any repo)
 ```bash
@@ -205,6 +208,8 @@ curl -X POST http://localhost:3000/api/embeddings/generate \
 The bot can:
 - **Search codebase**: "Find the user authentication code"
 - **Get file content**: "Show me the database schema"
+- **Answer about contributors**: "Who is cagemaster?", "Who are the main developers?"
+- **Repository info**: "How many contributors does the project have?"
 - **List GitHub issues**: "What are the open issues?"
 - **Get specific issue**: "Tell me about issue #123"
 - **List PRs**: "What pull requests are open?"
