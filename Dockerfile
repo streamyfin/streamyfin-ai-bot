@@ -22,12 +22,11 @@ ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/server.ts ./server.ts
 COPY --from=builder /app/package.json ./package.json
 
-# Create codebase directory
-RUN mkdir -p /app/codebase
-
 EXPOSE 3000
 
-CMD ["bun", "run", "server.ts"]
+CMD ["sh", "-c", "bun run scripts/migrate.ts && bun run server.ts"]
