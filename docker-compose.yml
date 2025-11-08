@@ -50,12 +50,9 @@ services:
       # App
       NODE_ENV: production
       PORT: 3000
-      CODEBASE_PATH: /app/codebase
       PROJECT_NAME: Streamyfin
     ports:
       - "3000:3000"
-    volumes:
-      - ./codebase:/app/codebase
     networks:
       - streamyfin-network
     restart: unless-stopped
