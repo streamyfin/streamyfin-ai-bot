@@ -366,3 +366,4 @@ await db.insert(embeddings).values(data);
 - [pgvector with Drizzle](https://orm.drizzle.team/docs/extensions/pg#pgvector)
 
 
+
