@@ -367,3 +367,4 @@ await db.insert(embeddings).values(data);
 
 
 
+
