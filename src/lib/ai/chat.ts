@@ -32,7 +32,7 @@ export async function generateChatResponse(
   try {
     const result = await generateText({
       model: openai("gpt-4o"),
-      system: getSystemPrompt(),
+      system: `${getSystemPrompt()}\n\nMisc:\nYou're talking to ${userName}`,  
       messages,
       tools: allTools,
       maxSteps: 5, // Allow multiple tool calls

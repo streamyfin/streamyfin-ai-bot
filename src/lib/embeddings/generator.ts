@@ -1,5 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { embedMany } from "ai";
+import { embed } from "ai";
 import { createHash } from "crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db/client";
@@ -193,4 +194,28 @@ async function processBatch(
   }));
 
   await db.insert(embeddings).values(values);
+}
+
+export async function storeDiscordAIResponses({ response, messageId }: { response: string, messageId: string }) {
+  const { openai } = await import("@ai-sdk/openai");
+  const { createHash } = await import("crypto");
+  const embeddingResult = await embed({
+    model: openai.embedding("text-embedding-3-large"),
+    value: response,
+  });
+  const contentHash = createHash("sha256").update(response).digest("hex");
+  await db.insert(embeddings).values({
+    filePath: "discord",
+    content: response,
+    contentHash,
+    chunkIndex: 0,
+    vector: embeddingResult.embedding,
+    metadata: {
+      source: "ai_response",
+      messageId,
+      feedbackScore: 0,
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
 }
