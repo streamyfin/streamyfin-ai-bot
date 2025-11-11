@@ -103,7 +103,8 @@ async function updateRAGFeedback(channelId: string, messageId: string, feedbackT
     if (!aiResponse) {
       const aiChats = db.select().from(messageHistory).where(eq(messageHistory.channelId, channelId)).limit(100)
       aiResponse = (await aiChats).find((msg) => msg.messageId == messageId && msg.isBot)
-    } else {
+    }
+    if (!aiResponse) {
       return;
     }
 
