@@ -57,6 +57,8 @@ export async function searchEmbeddings(
     const scored = results.map((r) => {
       const meta: any = r.metadata || {};
       let feedbackScore = typeof meta.feedbackScore === 'number' ? meta.feedbackScore : (Number(meta.feedbackScore) || 0);
+      // Normalize feedbackScore using a sigmoid-like transformation to bound it between -1 and 1.
+      // This reduces the impact of extreme feedback values and ensures the score remains stable.
       feedbackScore = feedbackScore / (1 + Math.abs(feedbackScore));
       const score = r.similarity + (weight * feedbackScore);
       return {
