@@ -7,6 +7,7 @@ import { messageHistory, embeddings } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { searchEmbeddings } from '../embeddings/search';
 import { getTopAIMessagesForQuery } from '../embeddings/search';
+import { storeDiscordAIResponses } from '../embeddings/generator';
 
 export async function handleMessage(message: Message): Promise<void> {
   let reply;
@@ -50,12 +51,14 @@ export async function handleMessage(message: Message): Promise<void> {
       prompt,
       message.author.username
     );
-
     // Edit reply with actual response
     const msgReply = await reply.edit(response);
     await msgReply.react("👍");
     await msgReply.react("👎");
 
+    if (response && response.length > 0) {
+      storeDiscordAIResponses({ response: response || '', messageId: msgReply.id });
+    }
     const filter = (reaction: MessageReaction, user: User) =>
       reaction.emoji.name !== null && ["👍", "👎"].includes(reaction.emoji.name) && user.id === message.author.id;
 
@@ -63,8 +66,8 @@ export async function handleMessage(message: Message): Promise<void> {
 
     collector.on("collect", async (reaction: MessageReaction) => {
       const feedbackType = reaction.emoji.name === "👍" ? 1 : -1;
-      let response = await updateRAGFeedback(message.channelId, msgReply.id, feedbackType)
-      if ((typeof response) === 'string') return msgReply.reply(response);
+      let updateFeedback = await updateRAGFeedback(message.channelId, msgReply.id, feedbackType)
+      if (typeof updateFeedback === 'string') return msgReply.reply(updateFeedback);
 
     });
 
@@ -122,6 +125,8 @@ async function updateRAGFeedback(channelId: string, messageId: string, feedbackT
 
     if (!results || results.length === 0) return;
 
+    const updates: Array<{ id: number, meta: any }> = [];
+
     for (const r of results) {
       if (!r.id) continue;
 
@@ -133,7 +138,7 @@ async function updateRAGFeedback(channelId: string, messageId: string, feedbackT
       meta.upvotes = meta.upvotes || 0;
       meta.downvotes = meta.downvotes || 0;
       meta.feedbackScore = meta.feedbackScore || 0;
-      //Maybe weight trustable users more
+      //Maybe weight trustable users more (by .2-.5)
       if (feedbackType > 0) {
         meta.upvotes += 1;
         meta.feedbackScore += 1;
@@ -142,8 +147,16 @@ async function updateRAGFeedback(channelId: string, messageId: string, feedbackT
         meta.feedbackScore -= 1;
       }
 
-      await db.update(embeddings).set({ metadata: meta, updatedAt: new Date() }).where(eq(embeddings.id, r.id));
+      updates.push({ id: r.id, meta });
     }
+    await db.transaction(async tx => {
+      for (const u of updates) {
+        await tx
+          .update(embeddings)
+          .set({ metadata: u.meta, updatedAt: new Date() })
+          .where(eq(embeddings.id, u.id));
+      }
+    });
     return `Thanks for your feedback! Successfully updated!`
   } catch (error) {
     console.error('Feedback error:', error);

@@ -53,7 +53,7 @@ export async function searchEmbeddings(
     .limit(limit);
 
   if (learn) {
-    const weight = 0.2; 
+    const weight = 0.2; //0.08-0.5
     const scored = results.map((r) => {
       const meta: any = r.metadata || {};
       let feedbackScore = typeof meta.feedbackScore === 'number' ? meta.feedbackScore : (Number(meta.feedbackScore) || 0);
@@ -84,6 +84,7 @@ export async function searchEmbeddings(
   }
 
   return results.map((row) => ({
+    id: row.id,
     filePath: row.filePath,
     content: row.content,
     similarity: row.similarity,
@@ -127,8 +128,13 @@ export async function getTopAIMessagesForQuery(query: string, limit: number = 2)
       similarity: sql<number>`1 - (${embeddings.vector} <=> ${vectorString}::vector)`,
     })
     .from(embeddings)
-    .where(sql`1 - (${embeddings.vector} <=> ${vectorString}::vector) > 0.1`)
-    .orderBy(sql`(metadata->>'feedbackScore')::float DESC`)
+    .where(sql`
+      metadata->>'source' = 'ai_response'
+      AND 1 - (${embeddings.vector} <=> ${vectorString}::vector) > 0.1
+    `)
+    .orderBy(
+      sql`1 - (${embeddings.vector} <=> ${vectorString}::vector) DESC`,
+      sql`(metadata->>'feedbackScore')::float DESC`)
     .limit(limit);
 
   return results.map(r => ({ content: r.content, feedbackScore: r.feedbackScore ?? 0 }));
